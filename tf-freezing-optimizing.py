@@ -23,31 +23,33 @@ def saving():
         tf.train.write_graph(sess.graph_def, './saved_model', 'graph.pb')
 
         #  Save checkpoint
-        saver.save(sess=sess, save_path="./saved_model/my_model")
+        saver.save(sess=sess, save_path="./saved_model/my_model.ckpt")
     return
 
 
 def freezing(input_graph, input_checkpoint, output_graph, output_node_names):
     from subprocess import call
-    call(['python', '-m', 'tensorflow.python.tools.freeze_graph', ''])
-    from tensorflow.python.tools import freeze_graph
-
-    freeze_graph.freeze_graph(input_graph=input_graph, input_saver="", input_checkpoint=input_checkpoint,
-                              output_graph=output_graph, input_binary=False, output_node_names=output_node_names,
-                              restore_op_name="save/restore_all", filename_tensor_name="save/Const:0",
-                              clear_devices=True,
-                              initializer_nodes="", variable_names_blacklist="")
+    call(['python', '-m', 'tensorflow.python.tools.freeze_graph',
+          '--input_graph', input_graph,
+          '--input_checkpoint', input_checkpoint,
+          '--output_graph', output_graph,
+          '--output_node_names={:s}'.format(output_node_names)])
     return
+
 
 def optimizing(input_frozen, output_optimized, input_names, output_names):
-    from tensorflow.python.tools import optimize_for_inference
-
-
+    # python -m tensorflow.python.tools.optimize_for_inference --input graph_frozen.pb --output graph_optimized.pb --input_names=x --output_names=y
+    from subprocess import call
+    call(['python', '-m', 'tensorflow.python.tools.optimize_for_inference',
+          '--input', input_frozen,
+          '--output', output_optimized,
+          '--input_names={:s}'.format(input_names),
+          '--output_names={:s}'.format(output_names)])
     return
 
 
-def using_optimized():
-    with tf.gfile.GFile('graph_optimized.pb', 'rb') as f:
+def using_optimized(freezed_optimized):
+    with tf.gfile.GFile(freezed_optimized, 'rb') as f:
         graph_def_optimized = tf.GraphDef()
         graph_def_optimized.ParseFromString(f.read())
 
@@ -70,15 +72,26 @@ def using_optimized():
 
 
 def main():
+    # # step 1: save the model
     # saving()
 
-    input_graph = "./saved_model/graph.pb"
-    input_checkpoint = "./saved_model/my_model"
-    output_graph = "./saved_model/graph_frozen.pb"
-    output_node_names = "y"  # The name of the output nodes, comma separated
-    freezing(input_graph, input_checkpoint, output_graph, output_node_names)
+    # # step 2: freeze the model
+    # input_graph = './saved_model/graph.pb'
+    # input_checkpoint = './saved_model/my_model.ckpt'
+    # output_graph = './saved_model/graph_frozen.pb'
+    # output_node_names = 'y'  # The name of the output nodes, comma separated
+    # freezing(input_graph, input_checkpoint, output_graph, output_node_names)
 
-    # using_optimized()
+    # # step 3: optimize the model
+    # input_frozen = './saved_model/graph_frozen.pb'
+    # output_optimized = './saved_model/graph_frozen_optimized.pb'
+    # input_names = 'x'
+    # output_names = 'y'
+    # optimizing(input_frozen, output_optimized, input_names, output_names)
+
+    # step 4: load the optimized model and do inference
+    freezed_optimized = './saved_model/graph_frozen_optimized.pb'
+    using_optimized(freezed_optimized)
     return
 
 
